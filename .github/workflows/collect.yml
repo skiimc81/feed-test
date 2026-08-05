@@ -1,0 +1,28 @@
+name: कलेक्टर
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/20 * * * *'
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: लाइब्रेरी इंस्टॉल
+        run: pip install requests feedparser
+      - name: खबरें इकट्ठा करें
+        run: python collect.py
+      - name: news.json सहेजें
+        run: |
+          git config user.name "github-actions"
+          git config user.email "actions@users.noreply.github.com"
+          git add news.json
+          git commit -m "खबरें अपडेट" || echo "कोई बदलाव नहीं"
+          git push
