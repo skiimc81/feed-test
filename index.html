@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>बिज़नेस न्यूज़ स्कैनर</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+Devanagari:wght@500;600;700&family=Mukta:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F4F3EE;
+    --surface:#FFFFFF;
+    --ink:#1A1A17;
+    --ink-soft:#5F5F55;
+    --ink-faint:#8A897E;
+    --line:#E2E0D7;
+    --line-strong:#CFCDC2;
+    --brand:#0F3D2E;        /* ledger green */
+    --brand-soft:#1E5C46;
+    --signal:#C6341C;       /* breaking / keyword hit */
+    --signal-bg:#FBE7E2;
+    --gold:#9A6B00;
+    --chip:#ECEAE1;
+    --shadow:0 1px 2px rgba(20,20,15,.06),0 8px 24px rgba(20,20,15,.05);
+  }
+  [data-theme="dark"]{
+    --paper:#16171A;
+    --surface:#202227;
+    --ink:#ECEBE3;
+    --ink-soft:#B4B3A9;
+    --ink-faint:#83837A;
+    --line:#2C2E33;
+    --line-strong:#3A3C42;
+    --brand:#4FBE96;
+    --brand-soft:#6FD3AE;
+    --signal:#F0634C;
+    --signal-bg:#3A211C;
+    --gold:#D6A94A;
+    --chip:#2A2C31;
+    --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Mukta",system-ui,sans-serif;
+    background:var(--paper);color:var(--ink);
+    line-height:1.5;-webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:"IBM Plex Mono",monospace}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  a{color:inherit}
+
+  /* ===== TOP BAR ===== */
+  header{
+    position:sticky;top:0;z-index:40;
+    background:var(--brand);color:#F4F3EE;
+    border-bottom:1px solid rgba(0,0,0,.15);
+  }
+  .bar{
+    display:flex;align-items:center;gap:16px;
+    padding:12px 20px;max-width:1500px;margin:0 auto;flex-wrap:wrap;
+  }
+  .brand{display:flex;align-items:baseline;gap:10px;margin-right:auto}
+  .brand h1{
+    font-family:"Noto Serif Devanagari",serif;font-weight:700;
+    font-size:22px;letter-spacing:.3px;color:#F4F3EE;
+  }
+  .brand .tag{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9FCBB8}
+  .search{
+    display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.12);
+    border:1px solid rgba(255,255,255,.18);border-radius:8px;padding:7px 12px;min-width:240px;
+  }
+  .search input{background:none;border:none;outline:none;color:#F4F3EE;font-size:14px;width:100%}
+  .search input::placeholder{color:#B7D3C7}
+  .seg{display:flex;background:rgba(255,255,255,.1);border-radius:8px;padding:3px;gap:2px}
+  .seg button{padding:5px 11px;border-radius:6px;font-size:13px;color:#CFE4DA;font-weight:500}
+  .seg button.on{background:#F4F3EE;color:var(--brand)}
+  .icon-btn{
+    width:38px;height:38px;border-radius:8px;background:rgba(255,255,255,.1);
+    display:grid;place-items:center;font-size:17px;color:#F4F3EE;
+  }
+  .icon-btn:hover{background:rgba(255,255,255,.2)}
+
+  /* status strip */
+  .status{
+    background:rgba(0,0,0,.16);border-top:1px solid rgba(255,255,255,.08);
+    font-size:12px;color:#BFD9CD;
+  }
+  .status .inner{
+    max-width:1500px;margin:0 auto;padding:6px 20px;display:flex;gap:20px;flex-wrap:wrap;align-items:center;
+  }
+  .status b{color:#F4F3EE;font-weight:600}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:#7FE3B8;display:inline-block;
+    animation:pulse 1.8s infinite;margin-right:5px;vertical-align:middle}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+  /* ===== LAYOUT ===== */
+  .wrap{max-width:1500px;margin:0 auto;display:grid;
+    grid-template-columns:200px 1fr 288px;gap:0;align-items:start}
+  aside{position:sticky;top:113px;max-height:calc(100vh - 113px);overflow-y:auto;padding:18px 14px}
+  .col-left{border-right:1px solid var(--line)}
+  .col-right{border-left:1px solid var(--line)}
+  main{padding:18px 22px;min-height:60vh}
+
+  /* categories */
+  .side-title{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--ink-faint);
+    margin:4px 6px 10px;font-weight:600}
+  .cat{display:flex;align-items:center;gap:8px;width:100%;text-align:right;
+    padding:7px 10px;border-radius:7px;font-size:15px;color:var(--ink-soft);justify-content:space-between}
+  .cat:hover{background:var(--chip)}
+  .cat.on{background:var(--brand);color:#F4F3EE;font-weight:600}
+  .cat .n{font-size:11px;color:var(--ink-faint)}
+  .cat.on .n{color:#BFD9CD}
+  .cat .bg-link{opacity:0;font-size:11px;color:var(--gold);white-space:nowrap}
+  .cat:hover .bg-link{opacity:1}
+  .cat.on .bg-link{color:#EAD9A8;opacity:1}
+
+  /* demo banner */
+  .demo{background:var(--signal-bg);border:1px dashed var(--signal);color:var(--signal);
+    font-size:12.5px;border-radius:8px;padding:8px 12px;margin-bottom:16px;line-height:1.45}
+
+  /* feed */
+  .feed-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px}
+  .feed-head h2{font-family:"Noto Serif Devanagari",serif;font-size:19px;font-weight:600}
+  .feed-head .sub{font-size:12.5px;color:var(--ink-faint)}
+  .card{
+    background:var(--surface);border:1px solid var(--line);border-radius:10px;
+    padding:15px 17px;margin-bottom:12px;transition:border-color .15s,box-shadow .15s;
+  }
+  .card:hover{border-color:var(--line-strong);box-shadow:var(--shadow)}
+  .card.hit{border-color:var(--signal)}
+  .card.hit::before{content:"";display:block}
+  .meta{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-faint);
+    margin-bottom:7px;flex-wrap:wrap}
+  .src{font-weight:600;color:var(--brand-soft)}
+  .pill{font-size:10.5px;padding:2px 7px;border-radius:20px;background:var(--chip);
+    color:var(--ink-soft);font-weight:500}
+  .pill.brk{background:var(--signal);color:#fff;font-weight:600;letter-spacing:.5px}
+  .pill.exc{background:var(--gold);color:#fff;font-weight:600}
+  .pill.lang{background:transparent;border:1px solid var(--line-strong)}
+  .card h3{font-family:"Noto Serif Devanagari",serif;font-size:17.5px;font-weight:600;
+    line-height:1.35;margin-bottom:6px;cursor:pointer}
+  .card h3:hover{color:var(--brand-soft)}
+  .card p{font-size:14.5px;color:var(--ink-soft);margin-bottom:11px}
+  .card .hl{background:rgba(198,52,28,.16);color:var(--signal);border-radius:3px;padding:0 2px;font-weight:600}
+  .card-foot{display:flex;align-items:center;gap:14px}
+  .cluster{font-size:12px;color:var(--gold);font-weight:600;display:inline-flex;align-items:center;gap:5px;
+    background:transparent;padding:0}
+  .cluster:hover{text-decoration:underline}
+  .link{font-size:13px;color:var(--brand-soft);font-weight:600;text-decoration:none}
+  .link:hover{text-decoration:underline}
+  .bk{margin-right:auto;font-size:13px;color:var(--ink-faint);display:inline-flex;align-items:center;gap:5px}
+  .bk.on{color:var(--gold)}
+  .empty{text-align:center;color:var(--ink-faint);padding:60px 20px;font-size:15px}
+
+  /* right rail */
+  .rail-box{margin-bottom:24px}
+  .kw-add{display:flex;gap:6px;margin-bottom:10px}
+  .kw-add input{flex:1;background:var(--surface);border:1px solid var(--line);border-radius:7px;
+    padding:8px 10px;font-size:14px;color:var(--ink);outline:none}
+  .kw-add input:focus{border-color:var(--brand)}
+  .kw-add button{background:var(--brand);color:#fff;border-radius:7px;padding:0 13px;font-weight:600;font-size:14px}
+  .kw-list{display:flex;flex-wrap:wrap;gap:7px}
+  .kw{display:inline-flex;align-items:center;gap:6px;background:var(--signal-bg);color:var(--signal);
+    border:1px solid var(--signal);border-radius:20px;padding:3px 6px 3px 11px;font-size:13px;font-weight:600}
+  .kw .cnt{background:var(--signal);color:#fff;border-radius:20px;font-size:10.5px;padding:1px 6px;min-width:18px;text-align:center}
+  .kw button{color:var(--signal);font-size:16px;line-height:1;opacity:.7}
+  .kw button:hover{opacity:1}
+  .kw-hint{font-size:12px;color:var(--ink-faint);margin-top:9px;line-height:1.45}
+  .bm-item{font-size:13.5px;padding:8px 0;border-bottom:1px solid var(--line);color:var(--ink-soft);line-height:1.4}
+  .bm-item:last-child{border:none}
+  .bm-item .x{float:left;color:var(--ink-faint);font-size:15px}
+  .bm-empty{font-size:13px;color:var(--ink-faint)}
+  .stat-row{display:flex;justify-content:space-between;font-size:13.5px;padding:5px 0;color:var(--ink-soft)}
+  .stat-row b{font-family:"IBM Plex Mono",monospace;color:var(--ink);font-weight:500}
+
+  /* ===== ASSIGNMENT / BACKGROUND PANEL ===== */
+  .scrim{position:fixed;inset:0;background:rgba(20,20,15,.45);z-index:60;opacity:0;pointer-events:none;transition:opacity .25s}
+  .scrim.open{opacity:1;pointer-events:auto}
+  .panel{position:fixed;top:0;right:0;height:100%;width:min(560px,94vw);background:var(--paper);
+    z-index:61;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);
+    box-shadow:-12px 0 40px rgba(0,0,0,.2);overflow-y:auto}
+  .panel.open{transform:translateX(0)}
+  .panel-head{position:sticky;top:0;background:var(--brand);color:#F4F3EE;padding:18px 22px;z-index:2}
+  .panel-head .eyebrow{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#9FCBB8;margin-bottom:4px}
+  .panel-head h2{font-family:"Noto Serif Devanagari",serif;font-size:24px;font-weight:700}
+  .panel-head .close{position:absolute;top:16px;left:18px;font-size:22px;color:#CFE4DA}
+  .panel-body{padding:20px 22px}
+  .p-sec{margin-bottom:26px}
+  .p-sec h4{font-size:12px;letter-spacing:1.2px;text-transform:uppercase;color:var(--gold);
+    margin-bottom:12px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .p-sec h4::after{content:"";flex:1;height:1px;background:var(--line-strong)}
+  .off-link{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);
+    border-radius:8px;padding:11px 13px;margin-bottom:8px;font-size:14px;text-decoration:none;color:var(--ink)}
+  .off-link:hover{border-color:var(--brand);color:var(--brand-soft)}
+  .off-link .arw{margin-right:auto;color:var(--ink-faint);font-size:13px}
+  .off-link .ico{width:30px;height:30px;border-radius:6px;background:var(--chip);display:grid;place-items:center;font-size:14px}
+  /* timeline */
+  .tl{position:relative;padding-right:22px}
+  .tl::before{content:"";position:absolute;right:6px;top:6px;bottom:6px;width:2px;background:var(--line-strong)}
+  .tl-item{position:relative;padding-bottom:16px}
+  .tl-item::before{content:"";position:absolute;right:1px;top:5px;width:12px;height:12px;border-radius:50%;
+    background:var(--brand);border:2px solid var(--paper)}
+  .tl-date{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--gold);font-weight:500}
+  .tl-txt{font-size:14px;color:var(--ink-soft);margin-top:2px}
+  .rel-story{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:11px 13px;margin-bottom:8px}
+  .rel-story .rs-meta{font-size:11.5px;color:var(--ink-faint);margin-bottom:3px}
+  .rel-story .rs-h{font-size:14.5px;font-weight:600;line-height:1.35}
+  .copy-note{width:100%;background:var(--brand);color:#fff;border-radius:8px;padding:11px;font-weight:600;font-size:14.5px;margin-top:6px}
+  .copy-note:hover{background:var(--brand-soft)}
+
+  @media(max-width:1100px){
+    .wrap{grid-template-columns:170px 1fr}
+    .col-right{display:none}
+  }
+  @media(max-width:720px){
+    .wrap{grid-template-columns:1fr}
+    .col-left{display:none}
+    .brand{margin-right:0;width:100%}
+    .search{order:5;width:100%}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">
+      <h1>बिज़नेस न्यूज़ स्कैनर</h1>
+      <span class="tag">Newsroom&nbsp;Edition</span>
+    </div>
+    <div class="search">
+      <span>🔍</span>
+      <input id="search" placeholder="खबर खोजें… (जैसे GDP, रेपो, अडानी)" autocomplete="off">
+    </div>
+    <div class="seg" id="lang-seg">
+      <button data-lang="hi" class="on">हिंदी</button>
+      <button data-lang="en">English</button>
+      <button data-lang="both">दोनों</button>
+    </div>
+    <div class="seg" id="region-seg">
+      <button data-region="all" class="on">सभी</button>
+      <button data-region="india">भारत</button>
+      <button data-region="intl">विदेश</button>
+    </div>
+    <button class="icon-btn" id="theme-btn" title="डार्क / लाइट">🌙</button>
+  </div>
+  <div class="status">
+    <div class="inner">
+      <span><span class="live-dot"></span>लाइव</span>
+      <span>आज <b id="s-total">0</b> खबरें</span>
+      <span>इकॉनमी <b id="s-eco">0</b></span>
+      <span>बाज़ार <b id="s-mkt">0</b></span>
+      <span>कीवर्ड अलर्ट <b id="s-alert">0</b></span>
+      <span class="mono" style="margin-right:auto">अंतिम अपडेट <span id="s-time">09:42</span></span>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- LEFT: categories -->
+  <aside class="col-left">
+    <div class="side-title">श्रेणियाँ</div>
+    <div id="cats"></div>
+  </aside>
+
+  <!-- CENTER: feed -->
+  <main>
+    <div class="demo" id="mode-banner">
+      फ़ीड से जुड़ रहा हूँ… थोड़ी देर में असली खबरें आ जाएँगी।
+    </div>
+    <div class="feed-head">
+      <h2 id="feed-title">सभी खबरें</h2>
+      <span class="sub" id="feed-count"></span>
+    </div>
+    <div id="feed"></div>
+  </main>
+
+  <!-- RIGHT: keyword + bookmarks + dashboard -->
+  <aside class="col-right">
+    <div class="rail-box">
+      <div class="side-title">कीवर्ड मॉनिटर</div>
+      <div class="kw-add">
+        <input id="kw-input" placeholder="जैसे RBI, अडानी, सोना…">
+        <button id="kw-add-btn">जोड़ें</button>
+      </div>
+      <div class="kw-list" id="kw-list"></div>
+      <div class="kw-hint">जोड़ा गया कीवर्ड जिस खबर में मिलेगा, वह हाइलाइट होकर ऊपर आ जाएगी।</div>
+    </div>
+
+    <div class="rail-box">
+      <div class="side-title">बुकमार्क</div>
+      <div id="bm-list"><div class="bm-empty">अभी कोई खबर सहेजी नहीं। कार्ड पर 🔖 दबाएँ।</div></div>
+    </div>
+
+    <div class="rail-box">
+      <div class="side-title">आज का डैशबोर्ड</div>
+      <div id="dash"></div>
+    </div>
+  </aside>
+</div>
+
+<!-- ASSIGNMENT PANEL -->
+<div class="scrim" id="scrim"></div>
+<div class="panel" id="panel">
+  <div class="panel-head">
+    <button class="close" id="panel-close">✕</button>
+    <div class="eyebrow">असाइनमेंट / बैकग्राउंड डेस्क</div>
+    <h2 id="panel-title">RBI</h2>
+  </div>
+  <div class="panel-body" id="panel-body"></div>
+</div>
+
+<script>
+/* =========================================================
+   डेटा — नमूना (demo). असली में यह बैकएंड/RSS से आएगा।
+   ========================================================= */
+const CATS = [
+  {k:"all",   label:"सभी"},
+  {k:"break", label:"ब्रेकिंग"},
+  {k:"eco",   label:"इकॉनमी", bg:true},
+  {k:"rbi",   label:"RBI", bg:true},
+  {k:"bank",  label:"बैंकिंग"},
+  {k:"market",label:"बाज़ार"},
+  {k:"ipo",   label:"IPO", bg:true},
+  {k:"corp",  label:"कॉर्पोरेट"},
+  {k:"startup",label:"स्टार्टअप"},
+  {k:"tax",   label:"टैक्स / GST", bg:true},
+  {k:"pf",    label:"पर्सनल फाइनेंस"},
+  {k:"commodity",label:"कमोडिटी", bg:true},
+  {k:"global",label:"ग्लोबल"},
+  {k:"tech",  label:"टेक / AI"},
+  {k:"auto",  label:"ऑटो"},
+  {k:"realty",label:"रियल एस्टेट"},
+];
+
+const NEWS = [
+  {id:1, cat:"rbi", region:"india", lang:"hi", src:"Moneycontrol", time:"22 मिनट पहले", prio:"break",
+   h:"RBI ने रेपो रेट 6.25% पर स्थिर रखा, रुख ‘न्यूट्रल’ बरकरार",
+   p:"मौद्रिक नीति समिति ने लगातार तीसरी बैठक में दरें नहीं बदलीं। गवर्नर ने महँगाई पर सतर्कता जताई और वृद्धि अनुमान 6.8% पर बनाए रखा।",
+   cluster:"repo", url:"https://www.rbi.org.in"},
+  {id:2, cat:"rbi", region:"india", lang:"en", src:"Reuters", time:"31 मिनट पहले", prio:"",
+   h:"India central bank holds key rate, flags food inflation risk",
+   p:"The MPC kept the repo rate unchanged as expected, citing sticky food prices even as core inflation eased in recent months.",
+   cluster:"repo", url:"https://www.reuters.com"},
+  {id:3, cat:"rbi", region:"india", lang:"hi", src:"Business Standard", time:"40 मिनट पहले", prio:"",
+   h:"रेपो रेट अपरिवर्तित: होम लोन की EMI पर फिलहाल राहत नहीं",
+   p:"दरें स्थिर रहने से मौजूदा कर्जदारों की किस्तें यथावत रहेंगी। विशेषज्ञों के अनुसार अगली कटौती की गुंजाइश दिसंबर तिमाही में बन सकती है।",
+   cluster:"repo", url:"https://www.business-standard.com"},
+
+  {id:4, cat:"eco", region:"india", lang:"hi", src:"Mint", time:"1 घंटा पहले", prio:"exc",
+   h:"जून तिमाही में GDP वृद्धि 7.1%, अनुमान से बेहतर",
+   p:"विनिर्माण और सेवा क्षेत्र में तेज़ी से आर्थिक वृद्धि उम्मीद से ऊपर रही। ग्रामीण माँग में सुधार के संकेत।",
+   cluster:"gdp", url:"https://www.livemint.com"},
+  {id:5, cat:"eco", region:"india", lang:"en", src:"PTI", time:"1 घंटा पहले", prio:"",
+   h:"India Q1 GDP grows 7.1%, beats street estimates",
+   p:"Growth was led by construction and financial services; economists say momentum may moderate in the second half.",
+   cluster:"gdp", url:"https://www.ptinews.com"},
+
+  {id:6, cat:"market", region:"india", lang:"hi", src:"Economic Times", time:"18 मिनट पहले", prio:"break",
+   h:"सेंसेक्स 640 अंक चढ़ा, निफ्टी ने नया रिकॉर्ड बनाया",
+   p:"बैंकिंग और IT शेयरों में खरीदारी से बाज़ार में उछाल। विदेशी निवेशकों की वापसी से धारणा मज़बूत।",
+   cluster:"", url:"https://economictimes.indiatimes.com"},
+  {id:7, cat:"market", region:"india", lang:"hi", src:"CNBC Awaaz", time:"55 मिनट पहले", prio:"",
+   h:"मिडकैप और स्मॉलकैप में मुनाफावसूली, निवेशक सतर्क",
+   p:"बड़े शेयरों की तुलना में छोटे शेयरों में दबाव दिखा। विश्लेषकों ने मूल्यांकन को लेकर सावधानी की सलाह दी।",
+   cluster:"", url:"https://www.cnbctv18.com"},
+
+  {id:8, cat:"ipo", region:"india", lang:"hi", src:"Moneycontrol", time:"2 घंटे पहले", prio:"exc",
+   h:"₹4,200 करोड़ का IPO अगले हफ़्ते खुलेगा, प्राइस बैंड तय",
+   p:"कंपनी ने ड्राफ्ट में विस्तार योजना और कर्ज़ चुकाने का लक्ष्य बताया। ग्रे मार्केट में मज़बूत प्रीमियम के संकेत।",
+   cluster:"", url:"https://www.moneycontrol.com"},
+  {id:9, cat:"ipo", region:"india", lang:"en", src:"Business Line", time:"3 घंटे पहले", prio:"",
+   h:"SEBI clears three IPOs; total issue size crosses ₹9,000 crore",
+   p:"The regulator approved offer documents ahead of a busy primary market window later this month.",
+   cluster:"", url:"https://www.thehindubusinessline.com"},
+
+  {id:10, cat:"corp", region:"india", lang:"hi", src:"Mint", time:"1 घंटा पहले", prio:"",
+   h:"रिलायंस का तिमाही मुनाफा 11% बढ़ा, रिटेल कारोबार में तेज़ी",
+   p:"टेलीकॉम और रिटेल खंड के दम पर आय बढ़ी। कंपनी ने नई ऊर्जा परियोजनाओं में निवेश दोगुना करने का ऐलान किया।",
+   cluster:"", url:"https://www.livemint.com"},
+  {id:11, cat:"corp", region:"india", lang:"hi", src:"Business Standard", time:"4 घंटे पहले", prio:"break",
+   h:"अडानी समूह की नई ऊर्जा इकाई में ₹15,000 करोड़ निवेश की घोषणा",
+   p:"समूह ने सौर और पवन क्षमता विस्तार की योजना का खुलासा किया। शेयरों में शुरुआती कारोबार में तेज़ी।",
+   cluster:"", url:"https://www.business-standard.com"},
+
+  {id:12, cat:"tax", region:"india", lang:"hi", src:"Economic Times", time:"5 घंटे पहले", prio:"",
+   h:"GST परिषद की बैठक 15 को, दरों के सरलीकरण पर फैसला संभव",
+   p:"कई वस्तुओं को दो-स्तरीय ढाँचे में लाने का प्रस्ताव विचाराधीन। छोटे कारोबारियों के लिए अनुपालन आसान करने पर ज़ोर।",
+   cluster:"", url:"https://economictimes.indiatimes.com"},
+  {id:13, cat:"pf", region:"india", lang:"hi", src:"Mint", time:"6 घंटे पहले", prio:"",
+   h:"बैंक FD की दरें घटने से पहले लॉक-इन का सही समय क्या है?",
+   p:"जानकारों के अनुसार लंबी अवधि की सावधि जमा में अभी ब्याज बेहतर है। दरें गिरने पर पुनर्निवेश जोखिम बढ़ सकता है।",
+   cluster:"", url:"https://www.livemint.com"},
+
+  {id:14, cat:"commodity", region:"india", lang:"hi", src:"CNBC Awaaz", time:"35 मिनट पहले", prio:"",
+   h:"सोना नए शिखर पर, ₹74,000 प्रति 10 ग्राम के पार",
+   p:"वैश्विक अनिश्चितता और डॉलर में नरमी से सुरक्षित निवेश की माँग बढ़ी। चाँदी में भी मज़बूती।",
+   cluster:"gold", url:"https://www.cnbctv18.com"},
+  {id:15, cat:"commodity", region:"intl", lang:"en", src:"Bloomberg", time:"48 मिनट पहले", prio:"",
+   h:"Gold hits record as investors seek safety amid tariff jitters",
+   p:"Bullion extended gains on haven demand; analysts point to a softer dollar and rate-cut bets globally.",
+   cluster:"gold", url:"https://www.bloomberg.com"},
+
+  {id:16, cat:"global", region:"intl", lang:"en", src:"Reuters", time:"1 घंटा पहले", prio:"break",
+   h:"US signals new tariffs on select imports, markets turn cautious",
+   p:"Trade tensions weighed on global equities as investors assessed the impact on supply chains and inflation.",
+   cluster:"tariff", url:"https://www.reuters.com"},
+  {id:17, cat:"global", region:"intl", lang:"hi", src:"PTI", time:"2 घंटे पहले", prio:"",
+   h:"अमेरिकी टैरिफ की आशंका से एशियाई बाज़ारों में गिरावट",
+   p:"निर्यात-आधारित शेयरों पर दबाव दिखा। भारतीय आईटी और फार्मा कंपनियों पर असर को लेकर चिंता।",
+   cluster:"tariff", url:"https://www.ptinews.com"},
+
+  {id:18, cat:"tech", region:"intl", lang:"en", src:"Bloomberg", time:"3 घंटे पहले", prio:"exc",
+   h:"AI chip demand pushes supplier revenue to fresh high",
+   p:"Data-centre spending continues to surge, though some analysts warn of a possible near-term inventory correction.",
+   cluster:"", url:"https://www.bloomberg.com"},
+  {id:19, cat:"startup", region:"india", lang:"hi", src:"Inc42", time:"4 घंटे पहले", prio:"",
+   h:"फिनटेक स्टार्टअप ने सीरीज़-B में $60 मिलियन जुटाए",
+   p:"निवेश का उपयोग उत्पाद विस्तार और नए बाज़ारों में प्रवेश के लिए होगा। कंपनी का मूल्यांकन दोगुना हुआ।",
+   cluster:"", url:"https://inc42.com"},
+  {id:20, cat:"bank", region:"india", lang:"hi", src:"Business Standard", time:"5 घंटे पहले", prio:"",
+   h:"निजी बैंकों की जमा वृद्धि सुस्त, कर्ज़-जमा अनुपात पर नज़र",
+   p:"RBI की सख़्ती के बीच बैंक जमा जुटाने पर ज़ोर दे रहे हैं। ब्याज दरों में प्रतिस्पर्धा तेज़।",
+   cluster:"", url:"https://www.business-standard.com"},
+  {id:21, cat:"auto", region:"india", lang:"hi", src:"Economic Times", time:"6 घंटे पहले", prio:"",
+   h:"अक्टूबर में यात्री वाहनों की बिक्री 8% बढ़ी, SUV की माँग मज़बूत",
+   p:"त्योहारी सीज़न से बिक्री को सहारा मिला। इलेक्ट्रिक वाहनों की हिस्सेदारी में लगातार सुधार।",
+   cluster:"", url:"https://economictimes.indiatimes.com"},
+  {id:22, cat:"realty", region:"india", lang:"hi", src:"Mint", time:"7 घंटे पहले", prio:"",
+   h:"मेट्रो शहरों में घरों की बिक्री रिकॉर्ड स्तर पर, कीमतें बढ़ीं",
+   p:"प्रीमियम आवास की माँग में तेज़ी जारी। किफ़ायती श्रेणी में आपूर्ति की कमी चिंता का विषय।",
+   cluster:"", url:"https://www.livemint.com"},
+];
+
+/* बैकग्राउंड डेस्क का संदर्भ-डेटा (टॉपिक-वार) */
+const TOPICS = {
+  rbi:{title:"RBI — रिज़र्व बैंक", match:["rbi","रेपो","रिज़र्व बैंक","repo","mpc","महँगाई","inflation"],
+    links:[
+      {ico:"🏛️", label:"RBI आधिकारिक वेबसाइट", url:"https://www.rbi.org.in"},
+      {ico:"📄", label:"प्रेस रिलीज़ / सर्कुलर", url:"https://www.rbi.org.in/Scripts/BS_PressReleaseDisplay.aspx"},
+      {ico:"📊", label:"मौद्रिक नीति रिपोर्ट", url:"https://www.rbi.org.in/Scripts/AnnualPolicy.aspx"},
+    ],
+    timeline:[
+      {d:"आज", t:"MPC ने रेपो रेट 6.25% पर स्थिर रखा (लगातार तीसरी बार)"},
+      {d:"पिछली बैठक", t:"दरें अपरिवर्तित, रुख ‘न्यूट्रल’ किया गया"},
+      {d:"जून", t:"25 आधार अंक की कटौती — रेपो 6.50% → 6.25%"},
+      {d:"अप्रैल", t:"रुख ‘विदड्रॉअल ऑफ अकोमोडेशन’ से बदला गया"},
+    ]},
+  eco:{title:"इकॉनमी — वृद्धि व महँगाई", match:["gdp","वृद्धि","इकॉनमी","महँगाई","inflation","cpi"],
+    links:[
+      {ico:"📈", label:"MoSPI — राष्ट्रीय आँकड़े", url:"https://www.mospi.gov.in"},
+      {ico:"🏦", label:"आर्थिक सर्वेक्षण", url:"https://www.indiabudget.gov.in/economicsurvey/"},
+    ],
+    timeline:[
+      {d:"आज", t:"जून तिमाही GDP वृद्धि 7.1% — अनुमान से बेहतर"},
+      {d:"पिछली तिमाही", t:"वृद्धि दर 6.7% रही"},
+      {d:"वार्षिक", t:"RBI का पूरे वर्ष का अनुमान 6.8%"},
+    ]},
+  ipo:{title:"IPO / प्राइमरी मार्केट", match:["ipo","sebi","सेबी","इश्यू","लिस्टिंग"],
+    links:[
+      {ico:"⚖️", label:"SEBI आधिकारिक वेबसाइट", url:"https://www.sebi.gov.in"},
+      {ico:"📃", label:"ड्राफ्ट ऑफर दस्तावेज़ (DRHP)", url:"https://www.sebi.gov.in/filings/public-issues.html"},
+      {ico:"📊", label:"NSE / BSE लिस्टिंग", url:"https://www.nseindia.com"},
+    ],
+    timeline:[
+      {d:"आज", t:"SEBI ने तीन IPO को मंज़ूरी दी, कुल आकार ₹9,000 करोड़+"},
+      {d:"इस हफ़्ते", t:"₹4,200 करोड़ का इश्यू खुलने वाला"},
+    ]},
+  tax:{title:"टैक्स / GST", match:["gst","जीएसटी","टैक्स","tax","परिषद"],
+    links:[
+      {ico:"🧾", label:"GST पोर्टल", url:"https://www.gst.gov.in"},
+      {ico:"🏛️", label:"CBIC — वित्त मंत्रालय", url:"https://www.cbic.gov.in"},
+      {ico:"📰", label:"PIB प्रेस रिलीज़", url:"https://pib.gov.in"},
+    ],
+    timeline:[
+      {d:"15 तारीख़", t:"GST परिषद की बैठक — दरों के सरलीकरण पर फैसला संभव"},
+      {d:"पिछली बैठक", t:"कई वस्तुओं पर दर घटाई गई थी"},
+    ]},
+  commodity:{title:"कमोडिटी — सोना / कच्चा तेल", match:["सोना","gold","चाँदी","silver","कच्चा तेल","crude","कमोडिटी"],
+    links:[
+      {ico:"🥇", label:"MCX — कमोडिटी एक्सचेंज", url:"https://www.mcxindia.com"},
+      {ico:"🌍", label:"वैश्विक बुलियन कीमतें", url:"https://www.reuters.com/markets/commodities/"},
+    ],
+    timeline:[
+      {d:"आज", t:"सोना ₹74,000/10 ग्राम के पार — रिकॉर्ड स्तर"},
+      {d:"इस हफ़्ते", t:"वैश्विक अनिश्चितता से सुरक्षित निवेश की माँग बढ़ी"},
+    ]},
+};
+
+/* =========================================================
+   STATE
+   ========================================================= */
+const store = {
+  cat:"all", region:"all", lang:"hi", q:"",
+  keywords: load("bns_keywords", []),
+  bookmarks: load("bns_bookmarks", []),
+  theme: load("bns_theme", "light"),
+};
+function load(k,d){ try{ const v=localStorage.getItem(k); return v?JSON.parse(v):d; }catch(e){ return d; } }
+function save(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+
+/* =========================================================
+   HELPERS
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const catLabel = k => (CATS.find(c=>c.k===k)||{}).label || k;
+function esc(s){ return s.replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+function matchesKeywords(item){
+  const text = (item.h + " " + item.p).toLowerCase();
+  return store.keywords.filter(k => text.includes(k.toLowerCase()));
+}
+function highlight(text){
+  if(!store.keywords.length) return esc(text);
+  let out = esc(text);
+  store.keywords.forEach(k=>{
+    if(!k.trim()) return;
+    const re = new RegExp("("+k.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+")","gi");
+    out = out.replace(re,'<span class="hl">$1</span>');
+  });
+  return out;
+}
+
+function filtered(){
+  let list = NEWS.filter(n=>{
+    if(store.cat==="break" && n.prio!=="break") return false;
+    if(store.cat!=="all" && store.cat!=="break" && n.cat!==store.cat) return false;
+    if(store.region!=="all" && n.region!==store.region) return false;
+    if(store.lang!=="both" && n.lang!==store.lang) return false;
+    if(store.q){
+      const t=(n.h+" "+n.p+" "+n.src).toLowerCase();
+      if(!t.includes(store.q.toLowerCase())) return false;
+    }
+    return true;
+  });
+  // कीवर्ड मिलने वाली खबरें ऊपर
+  list.sort((a,b)=> (matchesKeywords(b).length>0) - (matchesKeywords(a).length>0));
+  return list;
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+function renderCats(){
+  const counts = {};
+  NEWS.forEach(n=>{ counts[n.cat]=(counts[n.cat]||0)+1; });
+  const breakN = NEWS.filter(n=>n.prio==="break").length;
+  $("#cats").innerHTML = CATS.map(c=>{
+    let n = c.k==="all"?NEWS.length : c.k==="break"?breakN : (counts[c.k]||0);
+    const bg = c.bg ? `<span class="bg-link" data-bg="${c.k}">बैकग्राउंड ↗</span>` : `<span class="n">${n}</span>`;
+    return `<button class="cat ${store.cat===c.k?'on':''}" data-cat="${c.k}">
+      <span>${c.label}</span>${bg}</button>`;
+  }).join("");
+}
+
+function renderFeed(){
+  const list = filtered();
+  $("#feed-title").textContent = store.cat==="all" ? "सभी खबरें" : catLabel(store.cat);
+  $("#feed-count").textContent = list.length + " खबरें";
+
+  if(!list.length){
+    $("#feed").innerHTML = `<div class="empty">इस फ़िल्टर में कोई खबर नहीं मिली।<br>श्रेणी या भाषा बदलकर देखें।</div>`;
+    return;
+  }
+  $("#feed").innerHTML = list.map(n=>{
+    const hits = matchesKeywords(n);
+    const cl = n.cluster ? NEWS.filter(x=>x.cluster===n.cluster) : [];
+    const clusterBadge = cl.length>1 && cl[0].id===n.id
+      ? `<button class="cluster" data-cluster="${n.cluster}">⧉ 1 स्टोरी · ${cl.length} स्रोत</button>` : "";
+    const isBm = store.bookmarks.includes(n.id);
+    let prio = "";
+    if(n.prio==="break") prio = `<span class="pill brk">ब्रेकिंग</span>`;
+    else if(n.prio==="exc") prio = `<span class="pill exc">एक्सक्लूसिव</span>`;
+    return `<div class="card ${hits.length?'hit':''}">
+      <div class="meta">
+        <span class="src">${n.src}</span>·
+        <span class="pill">${catLabel(n.cat)}</span>
+        <span class="pill lang">${n.lang==="hi"?"हिंदी":"EN"}</span>
+        ${prio}
+        <span style="margin-right:auto"></span>
+        <span>${n.time}</span>
+      </div>
+      <h3 data-open="${n.url}">${highlight(n.h)}</h3>
+      <p>${highlight(n.p)}</p>
+      <div class="card-foot">
+        <button class="bk ${isBm?'on':''}" data-bm="${n.id}">${isBm?'🔖 सहेजा':'🔖 सहेजें'}</button>
+        ${clusterBadge}
+        <a class="link" href="${n.url}" target="_blank" rel="noopener">मूल पढ़ें →</a>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function renderKeywords(){
+  if(!store.keywords.length){
+    $("#kw-list").innerHTML = `<span class="bm-empty">कोई कीवर्ड नहीं जोड़ा।</span>`;
+  } else {
+    $("#kw-list").innerHTML = store.keywords.map(k=>{
+      const cnt = NEWS.filter(n=>(n.h+" "+n.p).toLowerCase().includes(k.toLowerCase())).length;
+      return `<span class="kw">${esc(k)} <span class="cnt">${cnt}</span>
+        <button data-rmkw="${esc(k)}">×</button></span>`;
+    }).join("");
+  }
+}
+
+function renderBookmarks(){
+  if(!store.bookmarks.length){
+    $("#bm-list").innerHTML = `<div class="bm-empty">अभी कोई खबर सहेजी नहीं। कार्ड पर 🔖 दबाएँ।</div>`;
+    return;
+  }
+  $("#bm-list").innerHTML = store.bookmarks.map(id=>{
+    const n = NEWS.find(x=>x.id===id); if(!n) return "";
+    return `<div class="bm-item"><button class="x" data-bm="${id}">×</button>${esc(n.h)}</div>`;
+  }).join("");
+}
+
+function renderDash(){
+  const eco = NEWS.filter(n=>n.cat==="eco").length;
+  const mkt = NEWS.filter(n=>n.cat==="market").length;
+  const rbi = NEWS.filter(n=>n.cat==="rbi").length;
+  const ipo = NEWS.filter(n=>n.cat==="ipo").length;
+  const alerts = NEWS.filter(n=>matchesKeywords(n).length>0).length;
+  $("#dash").innerHTML =
+    `<div class="stat-row"><span>कुल खबरें</span><b>${NEWS.length}</b></div>
+     <div class="stat-row"><span>इकॉनमी</span><b>${eco}</b></div>
+     <div class="stat-row"><span>बाज़ार</span><b>${mkt}</b></div>
+     <div class="stat-row"><span>RBI</span><b>${rbi}</b></div>
+     <div class="stat-row"><span>IPO</span><b>${ipo}</b></div>
+     <div class="stat-row"><span>कीवर्ड अलर्ट</span><b style="color:var(--signal)">${alerts}</b></div>`;
+  $("#s-total").textContent = NEWS.length;
+  $("#s-eco").textContent = eco;
+  $("#s-mkt").textContent = mkt;
+  $("#s-alert").textContent = alerts;
+}
+
+/* ===== ASSIGNMENT / BACKGROUND PANEL ===== */
+function openPanel(topicKey){
+  const t = TOPICS[topicKey];
+  if(!t) return;
+  $("#panel-title").textContent = t.title;
+  // संबंधित खबरें feed से
+  const rel = NEWS.filter(n=>{
+    const text=(n.h+" "+n.p).toLowerCase();
+    return t.match.some(m=>text.includes(m.toLowerCase()));
+  }).slice(0,8);
+  // टाइमलाइन असली संबंधित खबरों से बनती है; न मिले तो तैयार टाइमलाइन
+  const tl = rel.length ? rel.slice(0,6).map(n=>({d:n.time, t:n.h})) : (t.timeline||[]);
+
+  $("#panel-body").innerHTML = `
+    <div class="p-sec">
+      <h4>आधिकारिक स्रोत</h4>
+      ${t.links.map(l=>`<a class="off-link" href="${l.url}" target="_blank" rel="noopener">
+        <span class="ico">${l.ico}</span><span>${l.label}</span><span class="arw">↗</span></a>`).join("")}
+    </div>
+    <div class="p-sec">
+      <h4>टाइमलाइन — हाल का घटनाक्रम</h4>
+      <div class="tl">
+        ${tl.map(x=>`<div class="tl-item">
+          <div class="tl-date">${esc(x.d)}</div><div class="tl-txt">${esc(x.t)}</div></div>`).join("")}
+      </div>
+    </div>
+    <div class="p-sec">
+      <h4>संबंधित खबरें (${rel.length})</h4>
+      ${rel.length? rel.map(n=>`<div class="rel-story">
+        <div class="rs-meta">${n.src} · ${catLabel(n.cat)} · ${n.time}</div>
+        <div class="rs-h">${esc(n.h)}</div></div>`).join("")
+        : `<div class="bm-empty">फ़िलहाल इस विषय पर कोई खबर नहीं।</div>`}
+    </div>
+    <button class="copy-note" id="copy-brief">📋 बैकग्राउंड नोट कॉपी करें</button>
+  `;
+  $("#scrim").classList.add("open");
+  $("#panel").classList.add("open");
+
+  $("#copy-brief").onclick = ()=>{
+    const brief = `विषय: ${t.title}\n\nटाइमलाइन:\n`
+      + t.timeline.map(x=>`- ${x.d}: ${x.t}`).join("\n")
+      + `\n\nसंबंधित खबरें:\n`
+      + rel.map(n=>`- ${n.h} (${n.src})`).join("\n")
+      + `\n\nआधिकारिक स्रोत:\n`
+      + t.links.map(l=>`- ${l.label}: ${l.url}`).join("\n");
+    navigator.clipboard?.writeText(brief).then(
+      ()=>{ $("#copy-brief").textContent="✓ कॉपी हो गया"; setTimeout(()=>$("#copy-brief").textContent="📋 बैकग्राउंड नोट कॉपी करें",1600); }
+    );
+  };
+}
+function closePanel(){ $("#scrim").classList.remove("open"); $("#panel").classList.remove("open"); }
+
+/* topic key from cluster (for "1 story N sources") */
+function clusterTopic(cluster){
+  const map={repo:"rbi",gdp:"eco",gold:"commodity",tariff:"eco"};
+  return map[cluster]||null;
+}
+
+/* =========================================================
+   EVENTS
+   ========================================================= */
+document.addEventListener("click", e=>{
+  const t=e.target.closest("[data-cat],[data-bg],[data-bm],[data-rmkw],[data-open],[data-cluster]");
+  if(!t){ return; }
+  if(t.dataset.cat!==undefined && t.dataset.bg===undefined){
+    store.cat=t.dataset.cat; renderCats(); renderFeed(); return;
+  }
+  if(t.dataset.bg!==undefined){ e.stopPropagation(); openPanel(t.dataset.bg); return; }
+  if(t.dataset.cluster!==undefined){ const tk=clusterTopic(t.dataset.cluster); if(tk) openPanel(tk); return; }
+  if(t.dataset.open!==undefined){ window.open(t.dataset.open,"_blank"); return; }
+  if(t.dataset.bm!==undefined){
+    const id=+t.dataset.bm;
+    if(store.bookmarks.includes(id)) store.bookmarks=store.bookmarks.filter(x=>x!==id);
+    else store.bookmarks.push(id);
+    save("bns_bookmarks",store.bookmarks); renderFeed(); renderBookmarks(); return;
+  }
+  if(t.dataset.rmkw!==undefined){
+    store.keywords=store.keywords.filter(k=>k!==t.dataset.rmkw);
+    save("bns_keywords",store.keywords); renderAll(); return;
+  }
+});
+
+// language / region segments
+$("#lang-seg").addEventListener("click",e=>{
+  const b=e.target.closest("[data-lang]"); if(!b) return;
+  store.lang=b.dataset.lang;
+  [...$("#lang-seg").children].forEach(x=>x.classList.toggle("on",x===b));
+  renderFeed();
+});
+$("#region-seg").addEventListener("click",e=>{
+  const b=e.target.closest("[data-region]"); if(!b) return;
+  store.region=b.dataset.region;
+  [...$("#region-seg").children].forEach(x=>x.classList.toggle("on",x===b));
+  renderFeed();
+});
+
+// search
+$("#search").addEventListener("input",e=>{ store.q=e.target.value; renderFeed(); });
+
+// keyword add
+function addKw(){
+  const v=$("#kw-input").value.trim();
+  if(v && !store.keywords.includes(v)){ store.keywords.push(v); save("bns_keywords",store.keywords); }
+  $("#kw-input").value=""; renderAll();
+}
+$("#kw-add-btn").onclick=addKw;
+$("#kw-input").addEventListener("keydown",e=>{ if(e.key==="Enter") addKw(); });
+
+// theme
+function applyTheme(){ document.documentElement.setAttribute("data-theme",store.theme);
+  $("#theme-btn").textContent = store.theme==="dark"?"☀️":"🌙"; }
+$("#theme-btn").onclick=()=>{ store.theme=store.theme==="dark"?"light":"dark"; save("bns_theme",store.theme); applyTheme(); };
+
+// panel close
+$("#panel-close").onclick=closePanel;
+$("#scrim").onclick=closePanel;
+document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePanel(); });
+
+// clock
+setInterval(()=>{ const d=new Date();
+  $("#s-time").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }, 30000);
+
+/* =========================================================
+   INIT
+   ========================================================= */
+function renderAll(){ renderCats(); renderFeed(); renderKeywords(); renderBookmarks(); renderDash(); }
+
+/* ===== असली खबरें बैकएंड से लाना ===== */
+async function fetchLive(){
+  try{
+    const r = await fetch("news.json?t=" + Date.now(), {cache:"no-store"});
+    if(!r.ok) throw 0;
+    const data = await r.json();
+    if(!data.items || !data.items.length) throw 0;
+    NEWS.length = 0;
+    data.items.forEach(it=>NEWS.push(it));
+    const b = $("#mode-banner");
+    b.style.background = "var(--surface)";
+    b.style.borderStyle = "solid";
+    b.style.borderColor = "var(--brand)";
+    b.style.color = "var(--ink-soft)";
+    b.innerHTML = `<b style="color:var(--brand-soft)">● लाइव</b> — ${data.count} ताज़ा खबरें`
+      + (data.updated ? ` · अपडेट ${data.updated}` : ``)
+      + `। किसी श्रेणी पर “बैकग्राउंड” दबाएँ या दाईं ओर कीवर्ड जोड़ें।`;
+    const m = data.updated && String(data.updated).match(/(\d{2}:\d{2})/);
+    if(m) $("#s-time").textContent = m[1];
+    renderAll();
+  }catch(e){
+    $("#mode-banner").innerHTML =
+      `खबरें लोड हो रही हैं… अगर यह संदेश बना रहे तो कलेक्टर अभी चला नहीं, या <span class="mono">news.json</span> अभी बनी नहीं।`;
+  }
+}
+
+applyTheme();
+renderAll();                        // पहले डेमो दिखाओ
+fetchLive();                        // फिर असली लाने की कोशिश
+setInterval(fetchLive, 5*60*1000);  // हर 5 मिनट फिर से
+</script>
+</body>
+</html>
