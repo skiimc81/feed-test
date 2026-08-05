@@ -1,0 +1,36 @@
+name: फ़ीड टेस्ट
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: फ़ीड जाँच
+        run: |
+          UA="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
+          check () {
+            NAME="$1"; URL="$2"
+            BODY=$(curl -s -L -A "$UA" -m 25 -w "|HTTP%{http_code}" "$URL")
+            CODE=$(echo "$BODY" | grep -o 'HTTP[0-9]*' | tail -1)
+            ITEMS=$(echo "$BODY" | grep -o -i '<item\|<entry' | wc -l | tr -d ' ')
+            if [ "$ITEMS" -gt 0 ]; then
+              echo "  OPEN   | $NAME | $CODE | $ITEMS items"
+            else
+              echo "  BLOCK  | $NAME | $CODE | 0 items"
+            fi
+          }
+          echo "============================================================"
+          echo "  FEED TEST  --  GitHub ke server se"
+          echo "============================================================"
+          check "Moneycontrol EN   " "https://www.moneycontrol.com/rss/latestnews.xml"
+          check "Moneycontrol Hindi" "https://hindi.moneycontrol.com/news/rss/feeds/latest-news.xml"
+          check "Google News Hindi " "https://news.google.com/rss/search?q=%E0%A4%B6%E0%A5%87%E0%A4%AF%E0%A4%B0%20%E0%A4%AC%E0%A4%BE%E0%A4%9C%E0%A4%BE%E0%A4%B0&hl=hi-IN&gl=IN&ceid=IN:hi"
+          check "Google News EN    " "https://news.google.com/rss/search?q=sensex%20nifty&hl=en-IN&gl=IN&ceid=IN:en"
+          check "Business Standard " "https://www.business-standard.com/rss/markets-106.rss"
+          check "LiveMint          " "https://www.livemint.com/rss/markets"
+          check "Amar Ujala Hindi  " "https://www.amarujala.com/rss/business.xml"
+          check "CNBC World        " "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=100727362"
+          echo "============================================================"
+          echo "  OPEN  = khula (chalega)      BLOCK = roka gaya"
+          echo "============================================================"
