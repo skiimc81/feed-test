@@ -752,8 +752,7 @@ $("#scrim").onclick=closePanel;
 document.addEventListener("keydown",e=>{ if(e.key==="Escape") closePanel(); });
 
 // clock
-setInterval(()=>{ const d=new Date();
-  $("#s-time").textContent=String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0"); }, 30000);
+/* घड़ी हटाई — "अंतिम अपडेट" अब कलेक्टर के IST समय से आता है (news.json से) */
 
 /* =========================================================
    INIT
