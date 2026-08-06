@@ -7,7 +7,7 @@
 जो फ़ीड क्लाउड पर ब्लॉक हों, उनकी खबरें Google News के रास्ते आ जाती हैं।
 """
 import json, re, html, difflib
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import requests, feedparser
 
@@ -83,8 +83,7 @@ FEEDS = [
     {"name": "MC हिंदी निवेश", "url": "https://hindi.moneycontrol.com/news/rss/feeds/business/investment.xml", "cat": "pf", "lang": "hi", "region": "india"},
     {"name": "BS हिंदी टेलीकॉम", "url": "https://hindi.business-standard.com/rss/companies/telecom.xml", "cat": "corp", "lang": "hi", "region": "india"},
     {"name": "ET Wealth", "url": "https://economictimes.indiatimes.com/wealth/rssfeeds/837555174.cms", "cat": "pf", "lang": "en", "region": "india"},
-    {"name": "दैनिक भास्कर 1051", "url": "https://www.bhaskar.com/rss-v1--category-1051.xml", "cat": "corp", "lang": "hi", "region": "india"},
-    {"name": "दैनिक भास्कर 5707", "url": "https://www.bhaskar.com/rss-v1--category-5707.xml", "cat": "corp", "lang": "hi", "region": "india"},
+    # दैनिक भास्कर 1051 (आम खबरें) और 5707 हटाए — सिर्फ़ बिज़नेस वाला (1742, ऊपर) रखा।
     {"name": "Hindustan Times", "url": "https://www.hindustantimes.com/feeds/rss/business/rssfeed.xml", "cat": "corp", "lang": "en", "region": "india"},
     {"name": "LiveMint News", "url": "https://www.livemint.com/rss/news", "cat": "corp", "lang": "en", "region": "india"},
 ]
@@ -136,15 +135,22 @@ def detect_category(default, title, summary):
             return cat
     return default
 
+IST = timezone(timedelta(hours=5, minutes=30))
+HI_MON = ["जन","फ़र","मार","अप्र","मई","जून","जुल","अग","सित","अक्तू","नव","दिस"]
+
 def rel_time(pp):
-    if not pp: return "अभी"
-    try: dt = datetime(*pp[:6], tzinfo=timezone.utc)
-    except Exception: return "अभी"
-    m = (datetime.now(timezone.utc) - dt).total_seconds() / 60
-    if m < 1: return "अभी"
-    if m < 60: return f"{int(m)} मिनट पहले"
-    if m < 1440: return f"{int(m//60)} घंटे पहले"
-    return f"{int(m//1440)} दिन पहले"
+    """खबर का असली समय IST में — 'आज 14:20', 'कल 21:30', या '5 अग 18:00'।"""
+    if not pp: return ""
+    try:
+        dt = datetime(*pp[:6], tzinfo=timezone.utc).astimezone(IST)
+    except Exception:
+        return ""
+    now = datetime.now(IST)
+    hm = dt.strftime("%H:%M")
+    days = (now.date() - dt.date()).days
+    if days == 0: return f"आज {hm}"
+    if days == 1: return f"कल {hm}"
+    return f"{dt.day} {HI_MON[dt.month-1]} {hm}"
 
 def age_min(pp):
     if not pp: return 9999
@@ -214,7 +220,7 @@ def main():
     all_items = dedupe(all_items)
 
     data = {
-        "updated": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
+        "updated": datetime.now(IST).strftime("%Y-%m-%d %H:%M") + " IST",
         "count": len(all_items),
         "items": all_items,
     }
