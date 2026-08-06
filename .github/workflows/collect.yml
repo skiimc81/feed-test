@@ -2,7 +2,7 @@ name: कलेक्टर
 on:
   workflow_dispatch:
   schedule:
-    - cron: '*/20 * * * *'
+    - cron: '*/10 * * * *'
 
 permissions:
   contents: write
