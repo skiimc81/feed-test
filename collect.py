@@ -176,7 +176,7 @@ def fetch_one(feed):
     ents = parse_entries(feed)
     if not ents: return feed, [], False
     out = []
-    for e in ents[:25]:
+    for e in ents[:100]:
         title = clean(getattr(e, "title", ""))
         if not title: continue
         summ = clean(getattr(e, "summary", getattr(e, "description", "")))[:280]
