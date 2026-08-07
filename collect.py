@@ -51,7 +51,6 @@ FEEDS = [
     # — नीचे वाले उपयोगकर्ता द्वारा जाँचे हुए, चलते हुए हिंदी फ़ीड —
     {"name": "TV9 हिंदी",       "url": "https://www.tv9hindi.com/business/feed",           "cat": "corp",   "lang": "hi", "region": "india"},
     {"name": "Money9",          "url": "https://www.money9live.com/feed/",                 "cat": "pf",     "lang": "hi", "region": "india"},
-    {"name": "दैनिक भास्कर",    "url": "https://www.bhaskar.com/rss-v1--category-1742.xml", "cat": "corp",   "lang": "hi", "region": "india"},
     {"name": "दैनिक जागरण",     "url": "http://rss.jagran.com/rss/news/business.xml",       "cat": "corp",   "lang": "hi", "region": "india"},
     # — हिंदी Business Standard, हिंदी Moneycontrol, लाइव हिन्दुस्तान —
     {"name": "लाइव हिन्दुस्तान",   "url": "https://api.livehindustan.com/feeds/rss/business/rssfeed.xml", "cat": "corp",   "lang": "hi", "region": "india"},
